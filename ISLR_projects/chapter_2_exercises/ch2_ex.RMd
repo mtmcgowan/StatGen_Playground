@@ -1,0 +1,215 @@
+---
+title: "ch_2_exercises"
+author: "Matthew McGowan"
+date: "4/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(reshape2)
+library(ggplot2)
+```
+
+# Chapter 2 Summary
+
+Chapter 2 introduces the basic concepts of statistical learning.
+These are:
+
+* Prediction vs Inference
+* Parametric vs Non-parametric methods
+* Accuracy vs Interpretability of different approaches
+* Supervised vs Unsupervised learning
+* Regression vs Classification
+* Quality of fit (primarily MSE)
+* Bias vs Variance tradeoff for different underlying functions/methods
+* K-nearest neighbors
+* Basic coding in R (I skipped this since I am already familiar with R)
+
+# Exercises
+
+## Conceptual
+
+### 1: Flexible vs Inflexible?
+
+*For each of parts (a) through (d), indicate whether we would generally expect the performance of a flexible statistical learning method to be better or worse than an inflexible method. Justify your answer.*
+
+**(a) The sample size n is extremely large, and the number of predictors p is small.**
+
+The general effectiveness of any model is dependent on the real underlying function, how well the training sample matches this function, and the sample size. Without knowing the underlying function, I think more flexible methods are likely to be the best for extreme sample sizes because the large sample size will help reduce the variance introduced by differences between the training data and the theoretical true population.
+
+**(b) The number of predictors p is extremely large, and the number of observations n is small.**
+
+For a small number of observations, I think that less flexible approaches are more likely to produce a better model. Opposite of situation **(a)**, a small sample size means that the training population is not likely to represent the entire population very well. Using a less flexible model would help prevent the large number of predictors from overfitting the test population.
+
+**(c) The relationship between the predictors and response is highly non-linear.**
+
+Nonlinear responses are generally more likely to be modeled using a more flexible approach, but this is also influenced by sample size.
+
+**(d) The variance of the error terms, i.e. σ2 = Var(ϵ), is extremely high.**
+
+Based on equation 2.7, the model flexibility can affect the variance and bias of the function predictions, but does not affect the irreducible error.
+
+### 2: Classification or Regression?
+
+*Explain whether each scenario is a classification or regression problem, and indicate whether we are most interested in inference or prediction. Finally, provide n and p*
+
+**(a) We collect a set of data on the top 500 firms in the US. For each firm we record profit, number of employees, industry and the CEO salary. We are interested in understanding which factors affect CEO salary.**
+
+This scenario is a **regression** problem because the CEO salary is a quantitative trait. Also, given that the primary interest is in determining the **effects** of different variables on the salary, this would involve **inference**.
+
+n = 500 (firms)
+p = 3 (profit, employees, industry)
+y = CEO salary
+
+**(b) We are considering launching a new product and wish to know whether it will be a success or a failure. We collect data on 20 similar products that were previously launched. For each product we have recorded whether it was a success or failure, price charged for the product, marketing budget, competition price, and ten other variables.**
+
+The response variable is a categorical binary (success/failure) which is primarily **classification**. If a logistic model is used, the modeling process would involve regression, but the end goal is classifying the product. Since the goal is to classify future products with an unknown response outcome, the end goal is **prediction**.
+
+n = 20
+p = 13 (price, budget, comp. price, +10 others)
+y = success/failure
+
+**(c) We are interested in predicting the % change in the USD/Euro exchange rate in relation to the weekly changes in the world stock markets. Hence we collect weekly data for all of 2012. For each week we record the % change in the USD/Euro, the % change in the US market, the % change in the British market, and the % change in the German market.**
+
+Since % change is a quantitative outcome, this scenario is a regression problem. Since **prediction** is literally in the scenario description, it is obvious that **prediction** is the end goal here.
+
+n = 52 (weeks for 2012)
+p = 3 (US market, British market, German market)
+y = % change in USD/Euro exchange rate
+
+### 3: Bias-Variance Decomposition
+
+**(a) Provide a sketch of typical (squared) bias, variance, training error, test error, and Bayes (or irreducible) error curves, on a single plot, as we go from less flexible statistical learning methods towards more flexible approaches. The x-axis should represent the amount of flexibility in the method, and the y-axis should represent the values for each curve. There should be five curves. Make sure to label each one.**
+
+To keep the plotting simple, I am going to consider three Goldilocks model flexibility scenarios where the model has either too low, just right, or too much flexibility.
+
+x-axis = flexiblity = c(too_low, best_case, too_high)
+
+y-axis = multiple values = (squared) bias, variance, training error, test error, Bayes error
+
+```{r flex_graph, echo=FALSE}
+flexibility <- factor(c("too_low", "best_case", "too_high"), levels = c("too_low", "best_case", "too_high"))
+
+sq_bias <- jitter(c(1, 0.5, 0))
+variance <- jitter(c(0, 0.5, 1))
+training_error <- jitter(c(1, 0.5, 0))
+test_error <- jitter(c(1, 0.5, 1))
+bayes_error <- jitter(c(0.5, 0.5, 0.5))
+
+plot_data_wide <- data.frame(flexibility, sq_bias, variance, training_error, test_error, bayes_error)
+plot_data_long <- melt(plot_data_wide, id = "flexibility")
+names(plot_data_long) <- c("flexibility", "variable", "general_value")
+
+prob3_plot <- ggplot(plot_data_long, aes(x = flexibility, y = general_value, color = variable, group = variable)) +
+  geom_point() +
+  geom_path()
+
+prob3_plot
+```
+
+**(b) Explain why each of the five curves has the shape displayed in part (a).**
+
+**A model with too low of flexibility** would have a low variance since the model predictions would not drastically change with different subsamples. The bias would be high since it would be very unlikely that the model would match the true underlying function and would miss more subtle effects. Training error would be high since the model would not likely fit the training data. Test error would also be high since the model would not likely predict the test values well. 
+
+**A model with optimal flexibility** would have an optimal tradeoff between bias and variance that has just enough flexibility to capture subtle true effects without overfitting to noise in the data. This would result in a training error that approximates the testing error. 
+
+**A model with too much flexibility** would have low bias, but high variance. It would be very sensitive to the input data and would generate very different result depending on the training subset. This overfitting would result in a very low training error, but a high test error.
+
+Across all of these models, the Bayes error would be the same because this variable represents the intrinsic variance that is not captured by any of the predictors. Therefore, even a model that perfectly captures the input effects would still have this intrinsic error.
+
+### 4: Thinking About Real-world Examples
+
+*You will now think of some real-life applications for statistical learning.*
+
+**a) Describe three real-life applications in which classification might be useful. Describe the response, as well as the predictors. Is the goal of each application inference or prediction? Explain your answer.**
+
+1) Baked cinnamon rolls on a factory assembly line are being passed by a high-resolution scanner. Pictures of these products are then passed to a model that decides if that product is burnt or not. If burnt, an ACME boot swings across and kicks the burnt roll into the compost chute.
+
+Outcome: Burnt/Not-burnt
+Predictors: Color indices extracted from the picture
+
+2) Insurance claims are passed through a model that predicts whether the claim is fraudulent or not and should be followed-up by a claims agent.
+
+Outcome: fraudulent/legitimate
+Predictors: Claim amount, age, type, make , time of year, police report filed, age of policy
+
+3) Cancer tumor biopsies are subjected to a number of biomedical tests including metabolomics, DNA sequencing, microscopic analysis. This data is then used to determine whether there are discrete groups of tumor types that can be identified.
+
+Outcome: Type of cancer
+Predictors: metabolite quantities, DNA mutations, cytological features
+
+I skipped the rest of this exercise...
+
+### 5: Flexing flexiblity knowledge
+
+**What are the advantages and disadvantages of a very flexible (versus a less flexible) approach for regression or classification? Under what circumstances might a more flexible approach be preferred to a less flexible approach? When might a less flexible approach be preferred?**
+
+More flexible approaches are going to capture more subtle patterns and effects present in the training data. These could be non-linear, interaction, combinatorial, etc. types of effects. However, this can also lead to overfitting and a model that has low transferability to different external situations. More flexible approaches are generally preferred when the sample size is very large. Additionally, these models are more difficult to interpret at lower dimensions when inference is the end goal.
+
+### 6: Parametric vs Non-parametric 
+
+### 7: A simple data example for k-nearest neighbors
+
+The table below provides a training data set containing six observa-
+tions, three predictors, and one qualitative response variable.
+
+| Obs. | X1 | X2 | X3 | Y     |
+| :---: | :--: | :--: | :--: | :-----: |
+| 1    | 0  | 3  | 0  | Red   |
+| 2    | 2  | 0  | 0  | Red   |
+| 3    | 0  | 1  | 3  | Red   |
+| 4    | 0  | 1  | 2  | Green |
+| 5    | -1 | 0  | 1  | Green |
+| 6    | 1  | 1  | 1  | Red   |
+
+Suppose we wish to use this data set to make a prediction for Y when
+X 1 = X 2 = X 3 = 0 using K-nearest neighbors.
+
+**(a) Compute the Euclidean distance between each observation and the test point, X 1 = X 2 = X 3 = 0.**
+
+```{r flex_graph, echo=T}
+calc_euclid_dist <- function(ref_point, test_point)
+{
+  # Get the number of dimensions
+  dims <- length(ref_point)
+  
+  # Calulate squared differences for each dimenstion
+  sq_diffs <- sapply(1:dims, function(x) {(ref_point[x] - test_point[x])^2})
+  
+  # Calculate the square root of the sum of squares
+  dist <- sum(sq_diffs)^0.5
+  
+  return(dist)
+}
+
+test_table <- rbind(c(0,3,0),
+                    c(2,0,0),
+                    c(0,1,3),
+                    c(0,1,2),
+                    c(-1,0,1),
+                    c(1,1,1))
+colors <- as.factor(c("Red", "Red", "Red", "Green", "Green", "Red"))
+
+ref_point <- c(0, 0, 0)
+
+distances = apply(test_table, 1, calc_euclid_dist, ref_point = ref_point)
+
+prob5_table <- data.frame(1:6, test_table, colors, distances)
+names(prob5_table) <- c("index", "X1", "X2", "X3", "Y", "distance")
+
+prob5_table
+```
+
+**(b) What is our prediction with K = 1? Why?**
+
+Green. With k = 1, only the closest point (point 5) is used for prediction, which is green. 
+
+**(c) What is our prediction with K = 3? Why?**
+
+Red. The 3 closests points are 2, 5, and 6. Their colors are Red, Green, and Red. Thus, the majority vote of these neighbors (2/3) is Red.
+
+**(d) If the Bayes decision boundary in this problem is highly non-linear, then would we expect the best value for K to be large or small? Why?**
+
+For a complex underlying function, we would expect the best k value to be relatively small becasue it would allow the decision boundary to locally adjust and potentially capture more of the subtle behaviors of the underlying function.
